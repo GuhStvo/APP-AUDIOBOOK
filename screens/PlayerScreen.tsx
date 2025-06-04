@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,53 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { audiobooks } from '../data/audiobooks';
 import AudioPlayer from '../components/AudioPlayer';
 
 export default function PlayerScreen({ route }: any) {
   const { id } = route.params;
-  const book = audiobooks.find(a => a.id === id);
-  const [selectedChapter, setSelectedChapter] = useState(book?.chapters[0]);
+  const [audioBook, setAudiobook] = useState([]);
+  const [selectedChapter, setSelectedChapter] = useState([]);
 
-  if (!book) return <Text>Audiobook não encontrado</Text>;
+  async function fetchAudiobooks(id_livro: number) {
+    const res = await fetch(`http://localhost/api-audiobook/livros/listar.php?id_livro=${id_livro}`);
+    const data = await res.json();
+    return data.livros;
+  }
+
+  async function fetchCapitulos(id_livro: number) {
+    const res = await fetch(`http://localhost/api-audiobook/capitulos/listar.php?id_livro=${id_livro}`);
+    const data = await res.json();
+    return data.capitulos;
+  }
+
+  useEffect(() => {
+    if (!id) return;
+    fetchAudiobooks(id).then(setAudiobook);
+    fetchCapitulos(id).then(setSelectedChapter);
+  }, [id]);
+  
+  if (!audioBook) return <Text>Audiobook não encontrado</Text>;
 
   return (
     <ScrollView style={styles.container}>
-      <Image source={{ uri: book.cover }} style={styles.cover} />
-      <Text style={styles.title}>{book.title}</Text>
-      <Text style={styles.author}>{book.author}</Text>
+      <Image source={{ uri: audioBook.capa_url }} style={styles.cover} />
+      <Text style={styles.title}>{audioBook.titulo}</Text>
+      <Text style={styles.author}>{audioBook.autor}</Text>
 
       <Text style={styles.sectionTitle}>Capítulos</Text>
 
       <FlatList
-        data={book.chapters}
-        keyExtractor={item => item.id}
+        data={selectedChapter}
+        keyExtractor={item => item.id_capitulo}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => setSelectedChapter(item)}
             style={[
               styles.chapterItem,
-              selectedChapter?.id === item.id && styles.chapterSelected
+              selectedChapter?.id_capitulo === item.id_capitulo && styles.chapterSelected
             ]}
           >
-            <Text style={selectedChapter?.id === item.id ? styles.chapterTextSelected : styles.chapterText}>
+            <Text style={selectedChapter?.id_capitulo === item.id_capitulo ? styles.chapterTextSelected : styles.chapterText}>
               {item.title}
             </Text>
           </TouchableOpacity>
@@ -46,7 +63,7 @@ export default function PlayerScreen({ route }: any) {
       />
 
       <View style={styles.playerWrapper}>
-        {selectedChapter && <AudioPlayer audioId={selectedChapter.id} uri={selectedChapter.file} />}
+        {selectedChapter && <AudioPlayer audioId={selectedChapter.id_capitulo} uri={selectedChapter.audio_url} />}
       </View>
     </ScrollView>
   );
